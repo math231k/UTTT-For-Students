@@ -61,6 +61,9 @@ public class TestBotNoMCTS implements IBot {
             if (moveGivesMicroboardWin(wmove)) {
                 wmove.setWeight(wmove.getWeight() + 30);
             }
+            if (moveBlocksOpponentMicroboardWin(wmove)) {
+                wmove.setWeight(wmove.getWeight() + 25);
+            }
             
             weightedMoves.add(wmove);
         }
@@ -113,6 +116,28 @@ public class TestBotNoMCTS implements IBot {
         
         return givesWin;
     }
+    
+    public boolean moveBlocksOpponentMicroboardWin(IMove move) {
+        boolean blocksOpponent = false;
+        
+        String[][] board = state.getField().getBoard();
+        
+        String[][] tempBoard = new String[9][9];
+            for (int i = 0; i < 9; i++) {
+                for (int j = 0; j < 9; j++) {
+                    tempBoard[i][j] = board[i][j];
+                }
+            }
+        
+        tempBoard[move.getX()][move.getY()] = opponent;
+            
+        if (gm.isWin(tempBoard, move, opponent)) {
+            blocksOpponent = true;
+        }
+        
+        return blocksOpponent;
+    }
+            
 
         
     public boolean moveGivesOpponentWinChance(IMove move) {

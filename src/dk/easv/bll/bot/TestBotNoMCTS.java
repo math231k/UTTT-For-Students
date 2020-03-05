@@ -26,7 +26,7 @@ public class TestBotNoMCTS implements IBot {
     private String opponent;
     private GameManager gm;
     private IGameState state;
-    
+
     @Override
     public IMove doMove(IGameState state) {
         this.state = state;
@@ -35,94 +35,97 @@ public class TestBotNoMCTS implements IBot {
         opponent = (player.equals("1")) ? "0" : "1";
         List<IMove> possibleMoves = gm.getCurrentState().getField().getAvailableMoves();
         List<WMove> analyzedMoves = analyzeAvailableMoves(possibleMoves);
-        
-        if (analyzedMoves.get(0).getWeight() == analyzedMoves.get(analyzedMoves.size()-1).getWeight()) {
-            WMove wmove = analyzedMoves.get(rand.nextInt(analyzedMoves.size()));
-            System.out.println("Hello, I'm player " + player + ". I'm performing move " 
-                + wmove + " with (equal) weight of " + wmove.getWeight() + ". My opponent is " 
+
+        WMove wmove = analyzedMoves.get(rand.nextInt(analyzedMoves.size()));
+        System.out.println("Hello, I'm player " + player + ". I'm performing move "
+                + wmove + " with weight of " + wmove.getWeight() + ". My opponent is "
                 + opponent + ".");
-            return wmove;
-            
-        }
-        else {
-            WMove wmove = analyzedMoves.get(analyzedMoves.size()-1);
-            System.out.println("Hello, I'm player " + player + ". I'm performing move " 
-                + wmove + " with a weight of " + wmove.getWeight() + ". My opponent is " 
-                + opponent + ".");
-            return wmove;
-            
-        } 
+        return wmove;
+
     }
-               
-      
+
     @Override
     public String getBotName() {
         return BOT_NAME;
     }
-    
-    public List<WMove> analyzeAvailableMoves(List<IMove> availableMoves)
-    {
+
+    public List<WMove> analyzeAvailableMoves(List<IMove> availableMoves) {
         List<WMove> weightedMoves = new ArrayList<>();
-        
-        for (IMove move : availableMoves ) {
-            WMove wmove = new WMove(move.getX(),move.getY()); 
+
+        for (IMove move : availableMoves) {
+            WMove wmove = new WMove(move.getX(), move.getY());
             if (moveIsCenterOrDiagonal(wmove)) {
                 wmove.setWeight(wmove.getWeight() + 10);
             }
-            
+
             if (moveGivesMicroboardWin(wmove)) {
                 wmove.setWeight(wmove.getWeight() + 30);
             }
+            
             weightedMoves.add(wmove);
         }
-        
+
         weightedMoves.sort(Comparator.comparing(WMove::getWeight));
-        return weightedMoves;
+        int weight = weightedMoves.get(weightedMoves.size() - 1).getWeight();
+
+        List<WMove> analyzedMoves = new ArrayList<>();
+        for (WMove wmove : weightedMoves) {
+            if (wmove.getWeight() == weight) {
+                analyzedMoves.add(wmove);
+            }
+        }
+
+        return analyzedMoves;
     }
-    
+
     public boolean moveIsCenterOrDiagonal(IMove move) {
-        
-        boolean isCenterOrDiagonal = false;      
-                       
+
+        boolean isCenterOrDiagonal = false;
+
         int x = move.getX() % 3;
-        int y = move.getY() % 3;      
-                
+        int y = move.getY() % 3;
+
         if ((x == 0 & y == 0) || (x == 2 & y == 0) || (x == 0 & y == 2) || (x == 2 & y == 2) || (x == 1 & y == 1)) {
             isCenterOrDiagonal = true;
         }
-                
+
         return isCenterOrDiagonal;
     }
-    
-    public boolean moveGivesMicroboardWin (IMove move)
-    {
+        
+    public boolean moveGivesMicroboardWin(IMove move) {
+        
         boolean givesWin = false;
         
         String[][] board = state.getField().getBoard();
-        for (int i = 0; i > 9; i++) {
-            for (int j = 0; j > 9; j++) {
-                System.out.println(board[i][j]);
-            }
-        }
         
-        if (gm.isWin(state.getField().getBoard(), move, player)) {
+        String[][] tempBoard = new String[9][9];
+            for (int i = 0; i < 9; i++) {
+                for (int j = 0; j < 9; j++) {
+                    tempBoard[i][j] = board[i][j];
+                }
+            }
+        
+        tempBoard[move.getX()][move.getY()] = player;
+            
+        if (gm.isWin(tempBoard, move, player)) {
             givesWin = true;
         }
         
         return givesWin;
     }
-    
-    
-    
-    
-    
+
+        
+    public boolean moveGivesOpponentWinChance(IMove move) {
+        return false; //not implemented yet
+    }
+
     public class WMove extends Move {
-        
+
         private int weight;
-        
+
         public WMove(int x, int y) {
             super(x, y);
-        }    
+        }
 
         public int getWeight() {
             return weight;
@@ -130,11 +133,8 @@ public class TestBotNoMCTS implements IBot {
 
         public void setWeight(int weight) {
             this.weight = weight;
-        }       
-                
-                        
+        }
+
     }
-    
-    
-    
+
 }

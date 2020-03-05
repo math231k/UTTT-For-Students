@@ -25,13 +25,24 @@ public class TestBot4 implements IBot {
 
     private static final String BOTNAME = "Testbot4";
     private MonteCarloTreeSearch mcts;
+    
+    protected int[][] prefMove =
+    {
+        {0, 0}, {2, 0}, {2, 2}, {1, 0}, {2, 1}, {1 , 1}
+    };
 
     @Override
     public IMove doMove(IGameState state) {
+        
+        
+        
         mcts = new MonteCarloTreeSearch();
         int playerNo = (state.getMoveNumber() % 2 == 0) ? 0 : 1;
-        IMove move = mcts.findNextMove(new Board(state), playerNo).getLastMove(); 
+        IMove move = mcts.findNextMove(new Board(state), playerNo, state).getLastMove();
+        
         return move;
+       
+        
     }
 
     @Override
@@ -42,7 +53,7 @@ public class TestBot4 implements IBot {
     public class MonteCarloTreeSearch {
 
         private static final int WIN_SCORE = 10;
-        private static final int MILLISECONDS_TO_FIND_MOVE = 1000;
+        private static final int MILLISECONDS_TO_FIND_MOVE = 100;
         private int opponent;
         private UCT uct;
         private int simulationCounter = 0;
@@ -51,9 +62,9 @@ public class TestBot4 implements IBot {
             this.uct = new UCT();
         }        
         
-        public Board findNextMove(Board board, int playerNo) {
+        public Board findNextMove(Board board, int playerNo, IGameState state) {
             long start = System.currentTimeMillis();
-            long end = start + 1000;
+            long end = start + 100;
             
 
             opponent = 1 - playerNo;
@@ -67,7 +78,7 @@ public class TestBot4 implements IBot {
                 Node promisingNode = selectPromisingNode(rootNode);
                 // Phase 2 - Expansion
                 if (promisingNode.getState().getBoard().checkStatus() == Board.IN_PROGRESS) {                    
-                    expandNode(promisingNode);
+                    expandNode(promisingNode,state);
                 }
 
                 // Phase 3 - Simulation
@@ -75,7 +86,7 @@ public class TestBot4 implements IBot {
                 if (promisingNode.getChildArray().size() > 0) {
                     nodeToExplore = promisingNode.getRandomChildNode();
                 }
-                int playoutResult = simulateRandomPlayout(nodeToExplore);
+                int playoutResult = simulateRandomPlayout(nodeToExplore, state);
                 simulationCounter++;
                 // Phase 4 - Update
                 backPropogation(nodeToExplore, playoutResult);
@@ -95,14 +106,20 @@ public class TestBot4 implements IBot {
             return node;
         }
 
-        private void expandNode(Node node) {
-            List<State> possibleStates = node.getState().getAllPossibleStates();
-            possibleStates.forEach(state -> {
+        private void expandNode(Node node, IGameState gameState) {
+            List<State> possibleStates = node.getState().getAllPossibleStates(gameState);
+            
+            for (State state : possibleStates) {               
+            
                 Node newNode = new Node(state);
                 newNode.setParent(node);
                 newNode.getState().setPlayerNo(node.getState().getOpponent());
                 node.getChildArray().add(newNode);
-            });
+                if(node.getState().getBoard().getLastMove() == gameState.getField().getAvailableMoves().get(0)){
+                    break;
+                }
+            }
+            
         }
 
         private void backPropogation(Node nodeToExplore, int playerNo) {
@@ -116,7 +133,7 @@ public class TestBot4 implements IBot {
             }
         }
 
-        private int simulateRandomPlayout(Node node) {
+        private int simulateRandomPlayout(Node node, IGameState state) {
             
             Node tempNode = new Node(node);
             State tempState = tempNode.getState();
@@ -128,7 +145,9 @@ public class TestBot4 implements IBot {
             }
             while (boardStatus == Board.IN_PROGRESS) {
                 tempState.togglePlayer();
-                tempState.randomPlay();
+                if(!tempState.randomPlay(state)){
+                    break;
+                }
                 boardStatus = tempState.getBoard().checkStatus();
                 
             }
@@ -295,18 +314,23 @@ public class TestBot4 implements IBot {
             this.winScore = winScore;
         }
 
-        public List<State> getAllPossibleStates() {
+        public List<State> getAllPossibleStates(IGameState state) {
             List<State> possibleStates = new ArrayList<>();
             List<IMove> availablePositions = this.board.getEmptyPositions();  
             
-            availablePositions.forEach(m -> {
-                State newState = new State(this.board);             
-                              
-                newState.setPlayerNo(1 - this.playerNo);                 
-                newState.getBoard().performMove(newState.getPlayerNo(), m);              
+            for (IMove m : availablePositions) {
+            
+                State newState = new State(this.board);
+                newState.getBoard().performMove(newState.getPlayerNo(), m);               
+                newState.setPlayerNo(1 - this.playerNo);                          
                 possibleStates.add(newState);
                 
-            });          
+                if (newState.getBoard().getLastMove() == state.getField().getAvailableMoves().get(0)) {
+                    break;
+                }
+            }
+            
+            
                             
             
             return possibleStates;
@@ -322,12 +346,19 @@ public class TestBot4 implements IBot {
             }
         }
 
-        void randomPlay() {
+        boolean randomPlay(IGameState state) {
+            try{
             List<IMove> availablePositions = this.board.getEmptyPositions();
             int totalPossibilities = availablePositions.size();
             int selectRandom = (int) (Math.random() * totalPossibilities);
             this.board.performMove(this.playerNo, availablePositions.get(selectRandom));  
-
+            }
+            catch(IndexOutOfBoundsException iob){
+                System.out.println("Out of bounds");
+                this.board.performMove(this.playerNo, state.getField().getAvailableMoves().get(0));
+                return false;
+            }
+            return true;
         }
 
         void togglePlayer() {
@@ -337,7 +368,7 @@ public class TestBot4 implements IBot {
 
     }
 
-    public class Board {
+    public class Board{
 
         public static final int IN_PROGRESS = -2;
         public static final int DRAW = -1;
@@ -373,13 +404,11 @@ public class TestBot4 implements IBot {
 
         public void performMove(int player, IMove m) {
             currentPlayer = player;
-            if (gm.updateGame(m)) {
-                lastMove = m;                
-            }          
-            else {
-                System.out.println("illegal move: " + m);
-            }
+                if (gm.updateGame(m)) {
+                    lastMove = m;
+                }
             
+
         }
 
         public List<IMove> getEmptyPositions() {

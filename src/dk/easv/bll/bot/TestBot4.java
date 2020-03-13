@@ -53,7 +53,7 @@ public class TestBot4 implements IBot {
     public class MonteCarloTreeSearch {
 
         private static final int WIN_SCORE = 10;
-        private static final int MILLISECONDS_TO_FIND_MOVE = 100;
+        private static final int MILLISECONDS_TO_FIND_MOVE = 1000;
         private int opponent;
         private UCT uct;
         private int simulationCounter = 0;
